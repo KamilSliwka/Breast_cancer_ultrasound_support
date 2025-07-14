@@ -9,4 +9,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from .PVTNet import PolypPVT
-
+from .alStrategy import MyScoringModel

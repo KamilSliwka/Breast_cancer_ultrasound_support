@@ -57,6 +57,7 @@ from monailabel.interfaces.tasks.infer_v2 import InferType
 from monailabel.tasks.infer.basic_infer import BasicInferTask
 from lib.transforms import (SaveImagePred, PVTNetSumOutd,)
 from monailabel.transform.writer import Writer
+from monai.transforms import Compose
 
 import logging
 logger = logging.getLogger(__name__)
@@ -66,8 +67,10 @@ class Usg(BasicInferTask):
         # Override Labels
         # self.labels = {"Tumor": 255}
         # self.label_colors = {"Tumor": (255, 255, 0)}
-        super().__init__(path=path, network=network, type=InferType.SEGMENTATION, **kwargs, dimension=2, description="USG segment")
-        self.labels = {"Tumor": 255}
+        labels = {"Tumor": 255}
+        kwargs.pop("labels", None)
+        super().__init__(path=path, network=network,labels = labels,type=InferType.SEGMENTATION, **kwargs, dimension=2, description="USG segment")
+        #self.labels = {"Tumor": 255}
         print(conf)
         logger.info("init infer")
 
@@ -107,10 +110,12 @@ class Usg(BasicInferTask):
     
     
     def inferer(self, data=None) -> Inferer:
+    
         logger.info("inference")
         return SimpleInferer()
 
     def post_transforms(self, data=None) -> Sequence[Callable]:
+        logger.info("postTransform")
         return [
             EnsureTyped(keys="pred", device=data.get("device") if data else None),
             PVTNetSumOutd(keys="pred"),

@@ -28,6 +28,8 @@ from monailabel.interfaces.tasks.train import TrainTask
 from monailabel.tasks.activelearning.random import Random
 from monailabel.tasks.activelearning.first import First
 from lib.activelearning import Last
+from lib.activelearning import SelectImageWithMyScore
+from lib.activelearning import MyScoreGeneratorMethod
 
 from monailabel.utils.others.class_utils import get_class_names
 from monailabel.utils.others.generic import create_dataset_from_path, strtobool
@@ -138,6 +140,7 @@ class MyApp(MONAILabelApp):
             "random": Random(),
             "first": First(),
             "last": Last(),
+            "myStrategy": SelectImageWithMyScore(MyScoreGeneratorMethod()),
         }
 
         if strtobool(self.conf.get("skip_strategies", "false")):
@@ -163,6 +166,8 @@ class MyApp(MONAILabelApp):
         if strtobool(self.conf.get("skip_scoring", "true")):
             return methods
 
+        methods["my_score"] = MyScoreGeneratorMethod()
+        
         for n, task_config in self.models.items():
             s = task_config.scoring_method()
             if not s:
