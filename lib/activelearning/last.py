@@ -60,20 +60,36 @@ class SelectImageWithMyScore(Strategy):
     def __init__(self,scoring_method: ScoringMethod):
         super().__init__("Get Sample with the best score")
         self.scoring_method = scoring_method
+        self.current_strategy = 0
     def __call__(self, request, datastore: Datastore):
-        self.scoring_method(request, datastore)  # <-- scoring uruchamiany tutaj
+        self.scoring_method(request, datastore) 
         images = datastore.get_unlabeled_images()
         if not len(images):
             return None
 
-        my_scores = {image: datastore.get_image_info(image).get("my_score", 0) for image in images}
-
+        my_scores = {
+            image: {
+                "target": datastore.get_image_info(image).get("my_score_target", 0),
+                "uncertain": datastore.get_image_info(image).get("my_score_uncertain", 0)
+            }
+            for image in images
+        }
+        score_type = ["target","uncertain"]
         # default to picking at random if `my_score` is not available
-        if sum(my_scores.values()) == 0:
+        score = [my_scores[image][score_type[self.current_strategy]] for image in images]
+        if sum(score) == 0:
             image = random.choice(images)
             logger.info(f"Randomly selected Image from My Score '{image}'")
         else:
-            my_max_score, image = max(zip(my_scores.values(), my_scores.keys()))
-            logger.info(f"Selected image '{image}' using `my_score` ({my_max_score})")
+            my_max_score = max(score)
+            ind = score.index(my_max_score)
+            image = images[ind]
+            if self.current_strategy == 0:
+                logger.info(f"Selected image '{image}' using `my_score_target` ({my_max_score})")
+            else:
+                logger.info(f"Selected image '{image}' using `my_score_uncertain` ({my_max_score})")
+
+        self.current_strategy = (self.current_strategy + 1) % 2
+        
         return {"id": image}
   

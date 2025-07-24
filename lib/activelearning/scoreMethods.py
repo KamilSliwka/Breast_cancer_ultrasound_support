@@ -73,9 +73,11 @@ class MyScoreGeneratorMethod(ScoringMethod):
 
             # add `my_score` in datastore to use later in `SelectImageWithMyScore`
             info = {
-                "my_score": my_score,
+                "my_score_target": my_score["target"],
+                "my_score_uncertain": my_score["uncertain"],
                 "my_score_timestamp": scoring_model_timestamp
             }
+          
             datastore.update_image_info(image_id, info)
             result[image_id] = info
 
