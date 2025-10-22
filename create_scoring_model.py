@@ -2,27 +2,44 @@
 import torch
 from lib.models import PolypPVT, MyScoringModel
 from lib.infers import Usg
+from monai.utils import set_determinism
+import numpy as np, random
 
-# Ścieżka do wag pretrenowanego segmentora
-pretrained_weights = "/claraDevDay/new_endoscopy/lib/models/pvt_v2_b2.pth"
+seed = 42
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
+set_determinism(seed=seed)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Inicjalizacja i załadowanie wag
-segmentor = PolypPVT()
-model_dict = segmentor.state_dict()
-save_model = torch.load(pretrained_weights)
-save_model = {k.replace('module.', ''): v for k, v in save_model.items()}
-save_model = {k: v for k, v in save_model.items() if k in model_dict}
-model_dict.update(save_model)
-segmentor.load_state_dict(model_dict)
-segmentor.eval()
+# Load checkpoint
+ckpt_path = "/claraDevDay/new_endoscopy/model/usg_pvt.pt"
+ckpt = torch.load(ckpt_path, map_location=device)
+state_dict = ckpt["model"]
 
-# Zadanie inferencyjne
-usg_task = Usg(path=pretrained_weights, network=segmentor, conf={"labels": None})
+# Create model instance and load state dict
+model = PolypPVT().to(device)
+missing, unexpected = model.load_state_dict(state_dict, strict=False)
+model.eval()
 
-# Tworzenie scoring modelu
+# print("Model loaded successfully!")
+# print("Missing keys:", missing)
+# print("Unexpected keys:", unexpected)
+
+# with torch.no_grad():
+    
+#     dummy = torch.randn(1, 3, 512, 512).to(device)
+#     out = model(dummy)
+# print("Output stats:", out.min().item(), out.max().item(), out.mean().item())
+
+usg_task = Usg(path="/claraDevDay/new_endoscopy/model/usg_pvt.pt", network=model, conf={"labels": None})
+usg_task.network.eval()
+
+# Create scoring model
 scoring_model = MyScoringModel(usg_task)
 scoring_model.eval()
 
-# Zapis do pliku
+# Save to file
 torch.save(scoring_model, "/claraDevDay/new_endoscopy/lib/models/scoring_model.pth")
 print("Scoring model saved.")
+

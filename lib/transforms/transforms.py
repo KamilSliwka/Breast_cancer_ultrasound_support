@@ -63,18 +63,48 @@ class PVTNetSumOutd(MapTransform):
     ):
         super().__init__(keys)
 
+    # def __call__(self, data):
+    #     d = dict(data)
+    #     for key in self.keys:
+    #         out = d[key]
+    #         out_tensor = convert_data_type(out, torch.Tensor)
+    #         print(out)
+    #         print(out_tensor)
+    #         #tup_s = (out_tensor[0])
+    #         #s = torch.stack(tup_s)
+    #         s = torch.stack([out_tensor[0]])
+          
+    #         p = torch.sum(s, dim = 0, keepdim=False)
+    #         d[key] = p
+    #     return d
     def __call__(self, data):
         d = dict(data)
         for key in self.keys:
             out = d[key]
             out_tensor = convert_data_type(out, torch.Tensor)
-            print(out)
-            print(out_tensor)
-            #tup_s = (out_tensor[0])
-            #s = torch.stack(tup_s)
+            if isinstance(out_tensor, (list, tuple)):
+                for i, t in enumerate(out_tensor):
+                    if torch.is_tensor(t):
+                        min_val = torch.min(t).item()
+                        max_val = torch.max(t).item()
+                        print(f"  Level {i}: shape={t.shape}, min={min_val:.4f}, max={max_val:.4f}, type={type(t)}")
+                    else:
+                        print(f"  Level {i}: not a tensor, type={type(t)}")
+            else:
+                if torch.is_tensor(out_tensor):
+                    min_val = torch.min(out_tensor).item()
+                    max_val = torch.max(out_tensor).item()
+                    print(f"  Single tensor: shape={out_tensor.shape}, min={min_val:.4f}, max={max_val:.4f}, type={type(out_tensor)}")
+                else:
+                    print(f"  Single object of type {type(out_tensor)}")
+            
+
             s = torch.stack([out_tensor[0]])
-          
-            p = torch.sum(s, dim = 0, keepdim=False)
+            p = torch.sum(s, dim=0, keepdim=False)
+
+            print(f"[PVTNetSumOutd] after sum shape: {p.shape}")
+            print(f"[PVTNetSumOutd] after sum min={p.min().item():.4f}, max={p.max().item():.4f}")
+
             d[key] = p
         return d
     

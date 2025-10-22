@@ -3,6 +3,14 @@ from torch import nn
 from typing import Dict,Any
 import logging
 from monai.transforms import Compose
+from monai.transforms import (
+    Activationsd,
+    EnsureTyped,
+)
+from monai.data import MetaTensor
+from monai.inferers import sliding_window_inference
+from lib.transforms import (SaveImagePred, PVTNetSumOutd,)
+
 logger = logging.getLogger(__name__)
 
 class MyScoringModel(nn.Module):
@@ -10,9 +18,10 @@ class MyScoringModel(nn.Module):
         super().__init__()
         self.usg_task = usg_task
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+        self.counter = 0
    
     def forward(self, data: Dict[str, Any]) -> torch.Tensor:
+        self.usg_task.network.eval()
         logger.info(f"[SCORING MODEL] Przekazano dane: {list(data.keys())}")
         logger.info(f"[SCORING MODEL] Typ image: {type(data['image'])}")
        
@@ -21,8 +30,7 @@ class MyScoringModel(nn.Module):
             # 1. Preprocessing (np. LoadImaged, Resized, Normalized)
             transforms = Compose(self.usg_task.pre_transforms())
             d = transforms(data)
-            
-            #d = self.usg_task.pre_transforms(data)
+
             if isinstance(d, list):
                 d = d[0]  # take first element from list
            
@@ -30,32 +38,40 @@ class MyScoringModel(nn.Module):
             image = d["image"].unsqueeze(0).to(self.device)
             
             # 3. Inference
+           
+            print("=== PRE-TRANSFORM STATS ===")
+            print(f"Image shape: {image.shape}")
+            print(f"Image dtype: {image.dtype}")
+            print(f"Image min: {image.min().item():.4f}, max: {image.max().item():.4f}, mean: {image.mean().item():.4f}") 
+                      
             with torch.no_grad():
                 pred = self.usg_task.network(image)
-
+                print("=== MODEL RAW OUTPUT (logits) ===")
+                print(f"Type: {type(pred)}")
+                if isinstance(pred, torch.Tensor):
+                    print(f"Shape: {pred.shape}")
+                    print(f"Min: {pred.min().item():.4f}, Max: {pred.max().item():.4f}, Mean: {pred.mean().item():.4f}")
+                custom_post_transforms = Compose([
+                        EnsureTyped(keys="pred", device=data.get("device") if data else None),
+                        PVTNetSumOutd(keys="pred"),
+                        Activationsd(keys="pred", sigmoid=True),
+                    ])
+                    
+                output = custom_post_transforms({"pred": pred})
+                probs = output["pred"]
             # 4. entropy calculation
-
-            probs = torch.sigmoid(pred)  # Binary probability map
+    
+           # probs = torch.sigmoid(pred)  # Binary probability map
             probs = probs.squeeze()
             print(probs.shape)
+        
             
-            param1 = 0.4
+            param1 = 0.9
             param2 = 0.1           
-            
+            print("max: ", torch.max(probs))
             print(probs)
             
-            # path = "/claraDevDay/new_endoscopy/tensor.txt"
-            # torch.set_printoptions(threshold=float('inf'))
-
-            # with open(path, "w") as f:
-            #     f.write(str(probs))
-
-            # torch.set_printoptions(profile="default")
-            
-            # Wyciągamy indeksy pikseli "pewnych klasy pozytywnej"
-            # take pexels which are "certain" to be part of tumor
-            
-            target_1_pixels = torch.where(probs <= param1)
+            target_1_pixels = torch.where(probs >= param1)
 
             # take pexels which are "uncertain"(close 0.5)
             uncertain_1_pixels = torch.where(torch.abs(probs - 0.5) <= param2)
@@ -83,8 +99,8 @@ class MyScoringModel(nn.Module):
                         
             # Mean entropy as uncertainty score:
 
-            print("Probs stats:", probs.min().item(), probs.max().item(), probs.mean().item())
-            print("Entropy stats:", entropy.min().item(), entropy.max().item(), entropy.mean().item())
+            print("Probs stats:", "min: ", probs.min().item(),"max: ", probs.max().item(),"mean: ", probs.mean().item())
+            print("Entropy stats:","min: ",  entropy.min().item(),"max: ",  entropy.max().item(),"mean: ",  entropy.mean().item())
             logger.info(f"[SCORING] Score target : {target_uncertainty_avg}")
             logger.info(f"[SCORING] Score uncertain : {uncertain_uncertainty_avg}")
             logger.info(f"[SCORING] Entropy: {entropy}")
@@ -94,3 +110,6 @@ class MyScoringModel(nn.Module):
             "target": float(target_uncertainty_avg),
             "uncertain": float(uncertain_uncertainty_avg)
         }
+        
+        
+     

@@ -37,7 +37,7 @@ class MyScoreGeneratorMethod(ScoringMethod):
             image_info = datastore.get_image_info(image_id)
             prev_timestamp = image_info.get("my_score_timestamp", 0)
 
-            # if the timestamps match we dont' need to recompute score
+            #if the timestamps match we dont' need to recompute score
             if prev_timestamp == scoring_model_timestamp:
                 skipped += 1
                 continue
