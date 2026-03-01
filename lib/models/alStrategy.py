@@ -73,8 +73,8 @@ class MyScoringModel(nn.Module):
             
             target_1_pixels = torch.where(probs >= param1)
 
-            # take pexels which are "uncertain"(close 0.5)
-            uncertain_1_pixels = torch.where(torch.abs(probs - 0.5) <= param2)
+            # take pexels which are "uncertain"(close 0.5) Boundary-Driven
+            boundary_driven_1_pixels = torch.where(torch.abs(probs - 0.5) <= param2)
 
             # binary entropy
             entropy = -probs * torch.log(probs + 1e-8) - (1 - probs) * torch.log(1 - probs + 1e-8)
@@ -83,7 +83,7 @@ class MyScoringModel(nn.Module):
             # konverting indexes from 2D to 1D
             H, W = probs.shape
             target_1_indices_1d = target_1_pixels[0] * W + target_1_pixels[1]
-            uncertain_1_indices_1d = uncertain_1_pixels[0] * W + uncertain_1_pixels[1]
+            boundary_driven_1_indices_1d = boundary_driven_1_pixels[0] * W + boundary_driven_1_pixels[1]
 
             # average uncertain for "certain" pexels
             if len(target_1_indices_1d) > 0:
@@ -92,23 +92,23 @@ class MyScoringModel(nn.Module):
                 target_uncertainty_avg = torch.tensor(0.0)
 
             # average uncertain for "uncertain" pexels
-            if len(uncertain_1_indices_1d) > 0:
-                uncertain_uncertainty_avg = entropy[uncertain_1_indices_1d].mean()
+            if len(boundary_driven_1_indices_1d) > 0:
+                boundary_driven_uncertainty_avg = entropy[boundary_driven_1_indices_1d].mean()
             else:
-                uncertain_uncertainty_avg = torch.tensor(0.0)
+                boundary_driven_uncertainty_avg = torch.tensor(0.0)
                         
             # Mean entropy as uncertainty score:
 
             print("Probs stats:", "min: ", probs.min().item(),"max: ", probs.max().item(),"mean: ", probs.mean().item())
             print("Entropy stats:","min: ",  entropy.min().item(),"max: ",  entropy.max().item(),"mean: ",  entropy.mean().item())
             logger.info(f"[SCORING] Score target : {target_uncertainty_avg}")
-            logger.info(f"[SCORING] Score uncertain : {uncertain_uncertainty_avg}")
+            logger.info(f"[SCORING] Score boundary_driven : {boundary_driven_uncertainty_avg}")
             logger.info(f"[SCORING] Entropy: {entropy}")
             logger.info(f"[SCORING] Pred probs: {probs}")
 
         return {
             "target": float(target_uncertainty_avg),
-            "uncertain": float(uncertain_uncertainty_avg)
+            "boundary_driven": float(boundary_driven_uncertainty_avg)
         }
         
         

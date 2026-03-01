@@ -70,16 +70,16 @@ class SelectImageWithMyScore(Strategy):
         my_scores = {
             image: {
                 "target": datastore.get_image_info(image).get("my_score_target", 0),
-                "uncertain": datastore.get_image_info(image).get("my_score_uncertain", 0)
+                "boundary_driven": datastore.get_image_info(image).get("my_score_boundary_driven", 0)
             }
             for image in images
         }
-        score_type = ["target","uncertain"]
+        score_type = ["target","boundary_driven"]
         # default to picking at random if `my_score` is not available
         score = [my_scores[image][score_type[self.current_strategy]] for image in images]
         if sum(score) == 0:
             image = random.choice(images)
-            logger.info(f"Randomly selected Image from My Score '{image}'")
+            logger.info(f"Randomly selected Image from Selective Uncertainty '{image}'")
         else:
             my_max_score = max(score)
             ind = score.index(my_max_score)
@@ -87,7 +87,7 @@ class SelectImageWithMyScore(Strategy):
             if self.current_strategy == 0:
                 logger.info(f"Selected image '{image}' using `my_score_target` ({my_max_score})")
             else:
-                logger.info(f"Selected image '{image}' using `my_score_uncertain` ({my_max_score})")
+                logger.info(f"Selected image '{image}' using `my_score_boundary_driven` ({my_max_score})")
 
         self.current_strategy = (self.current_strategy + 1) % 2
         

@@ -140,7 +140,7 @@ class MyApp(MONAILabelApp):
             "random": Random(),
             "first": First(),
             "last": Last(),
-            "myStrategy": SelectImageWithMyScore(MyScoreGeneratorMethod()),
+            "SelectiveUncertainty": SelectImageWithMyScore(MyScoreGeneratorMethod()),
         }
 
         if strtobool(self.conf.get("skip_strategies", "false")):

@@ -74,7 +74,7 @@ class MyScoreGeneratorMethod(ScoringMethod):
             # add `my_score` in datastore to use later in `SelectImageWithMyScore`
             info = {
                 "my_score_target": my_score["target"],
-                "my_score_uncertain": my_score["uncertain"],
+                "my_score_boundary_driven": my_score["boundary_driven"],
                 "my_score_timestamp": scoring_model_timestamp
             }
           
